@@ -1,0 +1,13 @@
+header:
+  version: 11
+  includes:
+    - base.yml
+
+machine: qemux86-64
+
+local_conf_header:
+  debug: |
+    EXTRA_IMAGE_FEATURES += "debug-tweaks"
+  parallelism: |
+    BB_NUMBER_THREADS = "8"
+    PARALLEL_MAKE = "-j8"
