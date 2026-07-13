@@ -1,0 +1,200 @@
+name: Yocto kas CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - feature/ci-implementation
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      run_testimage:
+        description: Run the testimage job
+        required: false
+        type: boolean
+        default: false
+      yocto_clean_recipes:
+        description: Optional space-separated recipes to clean before building
+        required: false
+        type: string
+      yocto_clean_task:
+        description: Clean task to run for yocto_clean_recipes
+        required: false
+        type: choice
+        options:
+          - clean
+          - cleansstate
+          - cleanall
+        default: clean
+
+env:
+  LANG: en_US.UTF-8
+  LC_ALL: en_US.UTF-8
+  KAS_CONFIG: kas/tegra.yml
+  IMAGE_TARGET: core-image-minimal
+  MACHINE: jetson-agx-orin-devkit
+  YOCTO_CLEAN_RECIPES: ${{ inputs.yocto_clean_recipes || '' }}
+  YOCTO_CLEAN_TASK: ${{ inputs.yocto_clean_task || 'clean' }}
+
+jobs:
+  validate-yocto-metadata:
+    name: Validate Yocto metadata
+    runs-on: [self-hosted, linux, yocto]
+    timeout-minutes: 180
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Restore Yocto cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            yocto-cache/downloads
+            yocto-cache/sstate-cache
+          key: yocto-kas-${{ runner.os }}-${{ hashFiles('kas/*.yml', 'docker/yocto-kas-ci.Dockerfile') }}-${{ github.job }}-${{ github.run_id }}
+          restore-keys: |
+            yocto-kas-${{ runner.os }}-${{ hashFiles('kas/*.yml', 'docker/yocto-kas-ci.Dockerfile') }}-
+            yocto-kas-${{ runner.os }}-
+
+      - name: Build CI container
+        run: docker build -t yocto-kas-ci -f docker/yocto-kas-ci.Dockerfile .
+
+      - name: Validate metadata
+        run: |
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -e HOME=/work \
+            -e LANG=en_US.UTF-8 \
+            -e LC_ALL=en_US.UTF-8 \
+            -e KAS_CONFIG="$KAS_CONFIG" \
+            -e IMAGE_TARGET="$IMAGE_TARGET" \
+            -e MACHINE="$MACHINE" \
+            -e YOCTO_CLEAN_RECIPES="$YOCTO_CLEAN_RECIPES" \
+            -e YOCTO_CLEAN_TASK="$YOCTO_CLEAN_TASK" \
+            -v "$GITHUB_WORKSPACE:/work" \
+            yocto-kas-ci \
+            bash /work/ci/build-yocto.sh validate
+
+      - name: Upload validation artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: yocto-metadata-validation-${{ github.sha }}
+          if-no-files-found: ignore
+          retention-days: 7
+          path: |
+            yocto-cache/buildhistory
+            build/conf
+            build/tmp/log
+
+  build-core-image-minimal:
+    name: Build core-image-minimal
+    runs-on: [self-hosted, linux, yocto]
+    needs: validate-yocto-metadata
+    timeout-minutes: 180
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Restore Yocto cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            yocto-cache/downloads
+            yocto-cache/sstate-cache
+          key: yocto-kas-${{ runner.os }}-${{ hashFiles('kas/*.yml', 'docker/yocto-kas-ci.Dockerfile') }}-${{ github.job }}-${{ github.run_id }}
+          restore-keys: |
+            yocto-kas-${{ runner.os }}-${{ hashFiles('kas/*.yml', 'docker/yocto-kas-ci.Dockerfile') }}-
+            yocto-kas-${{ runner.os }}-
+
+      - name: Build CI container
+        run: docker build -t yocto-kas-ci -f docker/yocto-kas-ci.Dockerfile .
+
+      - name: Build image, SDK, and package indexes
+        run: |
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -e HOME=/work \
+            -e LANG=en_US.UTF-8 \
+            -e LC_ALL=en_US.UTF-8 \
+            -e KAS_CONFIG="$KAS_CONFIG" \
+            -e IMAGE_TARGET="$IMAGE_TARGET" \
+            -e MACHINE="$MACHINE" \
+            -e YOCTO_CLEAN_RECIPES="$YOCTO_CLEAN_RECIPES" \
+            -e YOCTO_CLEAN_TASK="$YOCTO_CLEAN_TASK" \
+            -v "$GITHUB_WORKSPACE:/work" \
+            yocto-kas-ci \
+            bash /work/ci/build-yocto.sh build
+
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-image-minimal-jetson-agx-orin-devkit-${{ github.sha }}
+          if-no-files-found: ignore
+          retention-days: 7
+          path: |
+            yocto-cache/buildhistory
+            build/conf
+            build/tmp/log
+            build/tmp/deploy/images/jetson-agx-orin-devkit
+            build/tmp/deploy/sdk
+            build/tmp/deploy/licenses
+            build/tmp/deploy/rpm
+            build/tmp/deploy/ipk
+            build/tmp/deploy/deb
+
+  test-core-image-minimal:
+    name: Test core-image-minimal
+    runs-on: [self-hosted, linux, yocto]
+    needs: build-core-image-minimal
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_testimage }}
+    continue-on-error: true
+    timeout-minutes: 180
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Restore Yocto cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            yocto-cache/downloads
+            yocto-cache/sstate-cache
+          key: yocto-kas-${{ runner.os }}-${{ hashFiles('kas/*.yml', 'docker/yocto-kas-ci.Dockerfile') }}-${{ github.job }}-${{ github.run_id }}
+          restore-keys: |
+            yocto-kas-${{ runner.os }}-${{ hashFiles('kas/*.yml', 'docker/yocto-kas-ci.Dockerfile') }}-
+            yocto-kas-${{ runner.os }}-
+
+      - name: Build CI container
+        run: docker build -t yocto-kas-ci -f docker/yocto-kas-ci.Dockerfile .
+
+      - name: Run testimage
+        run: |
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -e HOME=/work \
+            -e LANG=en_US.UTF-8 \
+            -e LC_ALL=en_US.UTF-8 \
+            -e KAS_CONFIG="$KAS_CONFIG" \
+            -e IMAGE_TARGET="$IMAGE_TARGET" \
+            -e MACHINE="$MACHINE" \
+            -e YOCTO_CLEAN_RECIPES="$YOCTO_CLEAN_RECIPES" \
+            -e YOCTO_CLEAN_TASK="$YOCTO_CLEAN_TASK" \
+            -v "$GITHUB_WORKSPACE:/work" \
+            yocto-kas-ci \
+            bash /work/ci/build-yocto.sh testimage
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: yocto-testimage-${{ github.sha }}
+          if-no-files-found: ignore
+          retention-days: 7
+          path: |
+            yocto-cache/buildhistory
+            build/conf
+            build/tmp/log
+            build/tmp/deploy/testresults
