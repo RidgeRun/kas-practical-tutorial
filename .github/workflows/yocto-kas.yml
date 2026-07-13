@@ -40,7 +40,7 @@ env:
 jobs:
   validate-yocto-metadata:
     name: Validate Yocto metadata
-    runs-on: [self-hosted, linux, yocto]
+    runs-on: [self-hosted, linux, x64]
     timeout-minutes: 180
     steps:
       - name: Check out repository
@@ -90,7 +90,7 @@ jobs:
 
   build-core-image-minimal:
     name: Build core-image-minimal
-    runs-on: [self-hosted, linux, yocto]
+    runs-on: [self-hosted, linux, x64]
     needs: validate-yocto-metadata
     timeout-minutes: 180
     steps:
@@ -147,7 +147,7 @@ jobs:
 
   test-core-image-minimal:
     name: Test core-image-minimal
-    runs-on: [self-hosted, linux, yocto]
+    runs-on: [self-hosted, linux, x64]
     needs: build-core-image-minimal
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_testimage }}
     continue-on-error: true
