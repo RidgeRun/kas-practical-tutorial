@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       run_testimage:
-        description: Run the testimage job
+        description: Run the placeholder test job
         required: false
         type: boolean
         default: false
@@ -153,48 +153,8 @@ jobs:
     continue-on-error: true
     timeout-minutes: 180
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Restore Yocto cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            yocto-cache/downloads
-            yocto-cache/sstate-cache
-          key: yocto-kas-${{ runner.os }}-${{ hashFiles('kas/*.yml', 'docker/yocto-kas-ci.Dockerfile') }}-${{ github.job }}-${{ github.run_id }}
-          restore-keys: |
-            yocto-kas-${{ runner.os }}-${{ hashFiles('kas/*.yml', 'docker/yocto-kas-ci.Dockerfile') }}-
-            yocto-kas-${{ runner.os }}-
-
-      - name: Build CI container
-        run: docker build -t yocto-kas-ci -f docker/yocto-kas-ci.Dockerfile .
-
-      - name: Run testimage
+      - name: Placeholder test stage
         run: |
-          docker run --rm \
-            --user "$(id -u):$(id -g)" \
-            -e HOME=/work \
-            -e LANG=en_US.UTF-8 \
-            -e LC_ALL=en_US.UTF-8 \
-            -e KAS_CONFIG="$KAS_CONFIG" \
-            -e IMAGE_TARGET="$IMAGE_TARGET" \
-            -e MACHINE="$MACHINE" \
-            -e YOCTO_CLEAN_RECIPES="$YOCTO_CLEAN_RECIPES" \
-            -e YOCTO_CLEAN_TASK="$YOCTO_CLEAN_TASK" \
-            -v "$GITHUB_WORKSPACE:/work" \
-            yocto-kas-ci \
-            bash /work/ci/build-yocto.sh testimage
-
-      - name: Upload test artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: yocto-testimage-${{ github.sha }}
-          if-no-files-found: ignore
-          retention-days: 7
-          path: |
-            yocto-cache/buildhistory
-            build/conf
-            build/tmp/log
-            build/tmp/deploy/testresults
+          echo "Test stage placeholder: define your own validation here."
+          echo "This training example does not run testimage."
+          echo "If you plan to use testimage, review: https://wiki.yoctoproject.org/wiki/Image_tests"
