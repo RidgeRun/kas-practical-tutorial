@@ -2,3 +2,4 @@ poky/
 meta-tegra/
 build/
 .kas*
+yocto-cache/
