@@ -7,7 +7,8 @@ target: core-image-minimal
 repos:
   poky:
     url: https://git.yoctoproject.org/git/poky
-    branch: kirkstone
+    branch: scarthgap
+    commit: 6b7474f7ca29076d28df81a49feec6311fa18202
     layers:
       meta:
       meta-poky:

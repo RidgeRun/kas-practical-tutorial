@@ -3,7 +3,15 @@ header:
   includes:
     - kas/base.yml
 
-machine: qemux86-64
+machine: jetson-agx-orin-devkit
+
+repos:
+  meta-tegra:
+    url: https://github.com/OE4T/meta-tegra
+    branch: scarthgap
+    commit: a54b81a15056f15e8a7ac080107b609a19e0326f
+    layers:
+      .:
 
 local_conf_header:
   debug: |
