@@ -41,7 +41,7 @@ jobs:
   validate-yocto-metadata:
     name: Validate Yocto metadata
     runs-on: [self-hosted, linux, x64]
-    timeout-minutes: 180
+    timeout-minutes: 360
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -102,7 +102,7 @@ jobs:
     name: Build core-image-minimal
     runs-on: [self-hosted, linux, x64]
     needs: validate-yocto-metadata
-    timeout-minutes: 180
+    timeout-minutes: 360
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -171,7 +171,7 @@ jobs:
     needs: build-core-image-minimal
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_testimage }}
     continue-on-error: true
-    timeout-minutes: 180
+    timeout-minutes: 360
     steps:
       - name: Placeholder test stage
         run: |

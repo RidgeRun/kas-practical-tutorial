@@ -17,5 +17,5 @@ local_conf_header:
   debug: |
     EXTRA_IMAGE_FEATURES += "debug-tweaks"
   parallelism: |
-    BB_NUMBER_THREADS = "8"
-    PARALLEL_MAKE = "-j8"
+    BB_NUMBER_THREADS = "16"
+    PARALLEL_MAKE = "-j16"
